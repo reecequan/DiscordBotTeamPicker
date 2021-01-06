@@ -1,11 +1,11 @@
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import org.w3c.dom.CDATASection;
 
 import javax.security.auth.login.LoginException;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.Properties;
+import java.util.Scanner;
 
 public class App
 {
@@ -25,16 +25,22 @@ public class App
 
     private String getKey() throws IOException
     {
-        Properties properties = new Properties();
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("key.properties");
-
-        if(inputStream != null)
-            properties.load(inputStream);
-        else
-        {
-            throw new FileNotFoundException();
+        String key = "";
+        try {
+            File myObj = new File("properties/key.properties");
+            Scanner myReader = new Scanner(myObj);
+            while (myReader.hasNextLine()) {
+                String data = myReader.nextLine();
+                key = data;
+            }
+            myReader.close();
+        } catch (FileNotFoundException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
         }
-        return properties.getProperty("key");
+
+        return key;
+
     }
 
 }
