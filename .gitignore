@@ -1,4 +1,4 @@
-properties/*
 .idea
 /target/*
 *.imi
+*key.properties*

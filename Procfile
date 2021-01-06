@@ -1,0 +1,1 @@
+worker: java -jar target/DiscordBotTeamCreator-1.01-shaded.jar
