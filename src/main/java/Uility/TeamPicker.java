@@ -1,3 +1,5 @@
+package Uility;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +31,7 @@ public class TeamPicker {
         }
     }
 
-    protected String splitTeams(List<String> allNames)
+    public String splitTeams(List<String> allNames)
     {
         List <String> teamOne = new ArrayList<>();
         List <String> teamTwo = new ArrayList<>();
@@ -68,7 +70,7 @@ public class TeamPicker {
         return sb.toString();
     }
 
-    protected String splitTeamsAndAssignRoles(List<String> allNames)
+    public String splitTeamsAndAssignRoles(List<String> allNames)
     {
         List <String> teamOne = new ArrayList<>();
         List <String> teamTwo = new ArrayList<>();
