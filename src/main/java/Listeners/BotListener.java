@@ -1,20 +1,30 @@
 package Listeners;
 
-import RiotApi.RiotApi;
+import Exceptions.ApiRejectedException;
+import Riot.Api.Items;
+import Riot.Api.RiotApi;
+import Riot.ComparePlayers;
+import Riot.LiveGame;
+import Riot.Ranked;
+import Riot.Storage.ChampData;
+import Riot.Storage.GameHistory;
+import Riot.Storage.Item;
+import Riot.Storage.RankedData;
 import Uility.ChampDetails;
 import Uility.SaveProperties;
 import Uility.TeamPicker;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class BotListener extends ListenerAdapter {
     private Map<String, List<String>> namesMap = new HashMap<>();
+    private Map<String, TeamPicker> teamStore = new HashMap<>();
 
     @Override
     public void onMessageReceived(MessageReceivedEvent e)
@@ -52,17 +62,155 @@ public class BotListener extends ListenerAdapter {
                 getChampDetails(input,e);
                 break;
             case "!history":
-                getHistory(input,e);
+                getHistory(input,e, false);
+                break;
+            case "!historyFile":
+                getHistory(input,e, true);
+                break;
+            case "!historyFileDate":
+                getHistoryDate(input,e);
+                break;
+            case "!reroll":
+                reroll(input, e);
+                break;
+            case "!move":
+                move(e);
+                break;
+            case "!rank":
+                getRankedData(input, e);
+                break;
+            case "!item":
+                getItem(input, e);
+                break;
+            case "!rankList":
+                reply(e,new ComparePlayers().getPlayers());
                 break;
         }
     }
 
-    private void getHistory(String input, MessageReceivedEvent e)
+    private void getItem(String input, MessageReceivedEvent e)
+    {
+        Item item = new Items().getItem(input);
+        reply(e, item.getMessage());
+    }
+
+    private void getRankedData(String input, MessageReceivedEvent e)
+    {
+
+        String[] inputParams = input.split(" ");
+        RankedData rankedData;
+        try {
+             rankedData = new Ranked().getRankedData(inputParams[0]);
+            //new LiveGame().getLiveGameData(inputParams[0]);
+        } catch (ApiRejectedException apiRejectedException) {
+            reply(e, apiRejectedException.getMessage());
+            return;
+        }
+        reply(e, rankedData.getMessage());
+
+    }
+
+    private void reroll(String input, MessageReceivedEvent e)
+    {
+        if(teamStore.containsKey(e.getGuild().getId()))
+        {
+            reply(e, teamStore.get(e.getGuild().getId()).reRoll(input.split(" ")[0]));
+        }
+        else
+        {
+            createTeam(e);
+        }
+    }
+
+    private void move(MessageReceivedEvent e)
+    {
+        Guild controller = e.getGuild();
+
+        List<VoiceChannel> vc = e.getGuild().getVoiceChannels();
+        VoiceChannel main = null;
+        for(VoiceChannel channel : vc)
+        {
+            if(channel.getName().toLowerCase().contains("lol") || channel.getName().toLowerCase().contains("league"))
+            {
+               main = channel;
+            }
+        }
+
+        for(VoiceChannel channel : vc)
+        {
+            if(channel.getName().toLowerCase().contains("team"))
+            {
+                List<Member> members = channel.getMembers();
+                for(Member member : members)
+                {
+                    controller.moveVoiceMember(member,main).complete();
+                }
+
+            }
+        }
+
+        System.out.println(vc.get(0).getName());
+    }
+
+
+    private void getHistory(String input, MessageReceivedEvent e, boolean fileOnly)
     {
         String[] inputParams = input.split(" ");
-        RiotApi riotApi = new RiotApi(inputParams[0],inputParams[1],Integer.parseInt(inputParams[2]));
-        String output = riotApi.getGameHistory();
-        reply(e,output);
+        String champ;
+        if(inputParams.length < 4)
+        {
+            champ = "";
+        }
+        else
+        {
+            champ = inputParams[3];
+        }
+        RiotApi riotApi = new RiotApi(inputParams[0],inputParams[1],Integer.parseInt(inputParams[2]), champ);
+        GameHistory gameHistory = null;
+        try {
+            gameHistory = riotApi.getGameHistory();
+        } catch (ApiRejectedException apiRejectedException) {
+            reply(e, apiRejectedException.getMessage());
+            return;
+        }
+        if(fileOnly)
+        {
+            final GameHistory gameHistoryTemp = gameHistory;
+            e.getAuthor().openPrivateChannel().flatMap(channel -> channel.sendFile(gameHistoryTemp.getCsv().write(inputParams[0]+" - Game History"))).queue();
+            gameHistory.getCsv().removeFile();
+            //e.getChannel().sendFile(gameHistory.getCsv().write(inputParams[0]+" - Game History")).queue();
+        }
+        else
+        {
+            reply(e,gameHistory.getOutput());
+        }
+    }
+
+    private void getHistoryDate(String input, MessageReceivedEvent e)
+    {
+        String[] inputParams = input.split(" ");
+        DateFormat format = new SimpleDateFormat("dd/MM/yyyy");
+        RiotApi riotApi = null;
+        try {
+            riotApi = new RiotApi(inputParams[0],
+                    inputParams[1],
+                    format.parse(inputParams[2]),
+                    format.parse(inputParams[3])
+            );
+        } catch (ParseException parseException) {
+            e.getAuthor().openPrivateChannel().flatMap(channel -> channel.sendMessage("Unable to use date please use dd/MM/yyyy format")).queue();
+
+        }
+        GameHistory gameHistory = null;
+        try {
+            gameHistory = riotApi.getGameHistory();
+        } catch (ApiRejectedException apiRejectedException) {
+            reply(e, apiRejectedException.getMessage());
+            return;
+        }
+        final GameHistory gameHistoryTemp = gameHistory;
+        e.getAuthor().openPrivateChannel().flatMap(channel -> channel.sendFile(gameHistoryTemp.getCsv().write(inputParams[0]+" - Game History"))).queue();
+        gameHistory.getCsv().removeFile();
     }
 
     private void setReply(MessageReceivedEvent e)
@@ -72,6 +220,43 @@ public class BotListener extends ListenerAdapter {
     }
 
     private void reply(MessageReceivedEvent e, String message)
+    {
+        String secondMessage = null;
+        if(message.length() > 2000)
+        {
+            int split = message.substring(0,1900).lastIndexOf(System.getProperty("line.separator"));
+            secondMessage = "```".concat(message.substring(split));
+            message = message.substring(0,split).concat("```");
+        }
+        String replyRoom = SaveProperties.getReplyRoom(e.getGuild().getId());
+        if(replyRoom != null && !e.getGuild().getTextChannelsByName(replyRoom,true).isEmpty())
+        {
+            e.getGuild().getTextChannelsByName(replyRoom,true).get(0).sendMessage(message).queue();
+        }
+        else
+        {
+            e.getChannel().sendMessage(message).queue();
+        }
+        if(secondMessage != null)
+        {
+            reply(e,secondMessage);
+        }
+    }
+
+    private void reply(MessageReceivedEvent e, MessageEmbed message)
+    {
+        String replyRoom = SaveProperties.getReplyRoom(e.getGuild().getId());
+        if(replyRoom != null && !e.getGuild().getTextChannelsByName(replyRoom,true).isEmpty())
+        {
+            e.getGuild().getTextChannelsByName(replyRoom,true).get(0).sendMessage(message).queue();
+        }
+        else
+        {
+            e.getChannel().sendMessage(message).queue();
+        }
+    }
+
+    private void reply(MessageReceivedEvent e, Message message)
     {
         String replyRoom = SaveProperties.getReplyRoom(e.getGuild().getId());
         if(replyRoom != null && !e.getGuild().getTextChannelsByName(replyRoom,true).isEmpty())
@@ -101,18 +286,15 @@ public class BotListener extends ListenerAdapter {
     }
 
     private void getChampDetails(String champ,MessageReceivedEvent e) {
-        String champDetails;
+        ChampData champDetails = new ChampData();
         try {
             champDetails = new ChampDetails().getChampDetails(champ);
         } catch (IOException ex)
         {
-            champDetails = "An Error has occoured";
+            //champDetails = "An Error has occoured";
         }
-        if(champDetails.isEmpty())
-        {
-            reply(e,"No Data has been returned");
-        }
-        splitChampDetailsDownIfNeeded(champDetails,e);
+
+        reply(e, champDetails.getMessage());
     }
 
     private List<String> getNames(String guildId)
@@ -145,12 +327,13 @@ public class BotListener extends ListenerAdapter {
     private void createTeam(MessageReceivedEvent e)
     {
         List<String> names = getNames(e.getGuild().getId());
-        if(names.size() != 10)
+        if(names.size() >= 11)
         {
             reply(e,"There is not enough names in the list to create teams");
             return;
         }
-        reply(e,new TeamPicker().splitTeamsAndAssignRoles(names));
+        teamStore.put(e.getGuild().getId(), new TeamPicker());
+        reply(e,teamStore.get(e.getGuild().getId()).splitTeamsAndAssignRoles(names));
     }
 
     private void createTeamNoRole(MessageReceivedEvent e)
@@ -161,7 +344,8 @@ public class BotListener extends ListenerAdapter {
             reply(e,"There is not enough names in the list to create teams");
             return;
         }
-        reply(e,new TeamPicker().splitTeams(names));
+        teamStore.put(e.getGuild().getId(), new TeamPicker());
+        reply(e,teamStore.get(e.getGuild().getId()).splitTeams(names));
     }
 
     private void getHelp(MessageReceivedEvent e)

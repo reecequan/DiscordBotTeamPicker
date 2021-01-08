@@ -1,4 +1,7 @@
-package RiotApi;
+package Riot.Api;
+
+import Exceptions.ApiRejectedException;
+import Riot.Constants.DDragonLinks;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -8,7 +11,7 @@ import java.net.URL;
 
 public class ApiHelper {
 
-    public static String getApiData(String link) throws IOException
+    public static String getApiData(String link) throws IOException, ApiRejectedException
     {
         URL url = new URL(link);
         String lineRead = null;
@@ -24,12 +27,16 @@ public class ApiHelper {
             }
             in.close();
         }
+        else
+        {
+            throw new ApiRejectedException("Api call failed with reason code - " + responceCode);
+        }
         return responce.toString();
     }
 
-    public static String getVersion() throws IOException
+    public static String getVersion() throws IOException, ApiRejectedException
     {
-        String data = getApiData("https://ddragon.leagueoflegends.com/api/versions.json");
+        String data = getApiData(DDragonLinks.VERSION.getValue());
         return data.replaceAll("\"","").replaceAll("\\[","").replaceAll("\\]","").split(",")[0];
     }
 }

@@ -14,6 +14,7 @@ public class SaveProperties {
 
         try (OutputStream outputStream = new FileOutputStream(myObj))
         {
+            System.out.println(myObj);
             properties.setProperty(server, room);
             properties.store(outputStream, null);
         } catch (IOException e) {

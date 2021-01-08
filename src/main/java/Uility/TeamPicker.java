@@ -5,8 +5,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class TeamPicker {
-    StringBuilder sb = new StringBuilder();
-
+    private StringBuilder sb;
+    private List <String> teamOne;
+    private List <String> teamTwo;
 
     private List<String> getRoles()
     {
@@ -19,7 +20,7 @@ public class TeamPicker {
         return new ArrayList<>(roles);
     }
 
-    private void assignTeam(List<String> names)
+    private void assignRole(List<String> names)
     {
         List<String> roles = getRoles();
         for (String name : names)
@@ -31,7 +32,7 @@ public class TeamPicker {
         }
     }
 
-    public String splitTeams(List<String> allNames)
+    private void splitTeamsUp(List<String> allNames)
     {
         List <String> teamOne = new ArrayList<>();
         List <String> teamTwo = new ArrayList<>();
@@ -47,6 +48,14 @@ public class TeamPicker {
                 teamTwo.add(allNames.get(i));
             }
         }
+        this.teamOne = teamOne;
+        this.teamTwo = teamTwo;
+    }
+
+    public String splitTeams(List<String> allNames)
+    {
+        splitTeamsUp(allNames);
+        sb = new StringBuilder();
         sb.append("```");
         sb.append("--------------");
         sb.append("Team One");
@@ -72,31 +81,38 @@ public class TeamPicker {
 
     public String splitTeamsAndAssignRoles(List<String> allNames)
     {
-        List <String> teamOne = new ArrayList<>();
-        List <String> teamTwo = new ArrayList<>();
-        Collections.shuffle(allNames);
-        for(int i=0; i < allNames.size(); i++)
-        {
-            if(i % 2 == 0)
-            {
-                teamOne.add(allNames.get(i));
-            }
-            else
-            {
-                teamTwo.add(allNames.get(i));
-            }
-        }
+        sb = new StringBuilder();
+        splitTeamsUp(allNames);
         sb.append("```");
         sb.append("--------------");
         sb.append("Team One");
         sb.append("--------------");
         sb.append(System.getProperty("line.separator"));
-        assignTeam(teamOne);
+        assignRole(teamOne);
         sb.append("--------------");
         sb.append("Team Two");
         sb.append("--------------");
         sb.append(System.getProperty("line.separator"));
-        assignTeam(teamTwo);
+        assignRole(teamTwo);
+        sb.append("```");
+        return sb.toString();
+    }
+
+    public String reRoll(String team)
+    {
+        sb = new StringBuilder();
+        sb.append("```");
+
+        if(team.contains("one") || team.contains("1"))
+        {
+            Collections.shuffle(teamOne);
+            assignRole(teamOne);
+        }
+        else
+        {
+            Collections.shuffle(teamTwo);
+            assignRole(teamTwo);
+        }
         sb.append("```");
         return sb.toString();
     }

@@ -1,5 +1,10 @@
-package RiotApi;
+package Riot.Api;
 
+import Exceptions.ApiRejectedException;
+import Uility.Csv;
+import Riot.Storage.GameData;
+import Riot.Storage.GameHistory;
+import Riot.Constants.RiotApiLinks;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -10,11 +15,11 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static RiotApi.ApiHelper.getApiData;
-import static RiotApi.ApiHelper.getVersion;
+import static Riot.Api.ApiHelper.getApiData;
+import static Riot.Api.ApiHelper.getVersion;
 
 public class RiotApi {
-    public static final String KEY = "RGAPI-63b65ab8-be83-488c-9bc1-fa3edc55e71b";
+    public static final String KEY = "RGAPI-e44008fb-797b-4efe-bb35-680844cd638b";
     public static JSONObject champData;
     private String role;
     private String date;
@@ -24,7 +29,12 @@ public class RiotApi {
     private String summonorName;
     private String queue;
     private HashMap<String, String> sumData;
-    private StringBuilder stringBuilder = new StringBuilder();
+    private StringBuilder stringBuilder = new StringBuilder("```");
+    private Csv csv = new Csv();
+    private final GameHistory gameHistory = new GameHistory();
+    private long startTime;
+    private long endTime;
+    private String champ = "";
 
     static{
         queueType.put("aram",450);
@@ -33,16 +43,39 @@ public class RiotApi {
         queueType.put("normal",400);
     }
 
-    public RiotApi(String summonorName, String queue, int numOfGames) {
+    public RiotApi(String summonorName, String queue, int numOfGames, String champ)
+    {
         this.summonorName = summonorName;
         this.numOfGames = numOfGames;
         if(queueType.containsKey(queue.toLowerCase()))
         {
             this.queue = String.valueOf(queueType.get(queue.toLowerCase()));
         }
+        this.champ = champ;
     }
 
-    private void getChampData()
+    public RiotApi(String summonorName, String queue, Date start, Date end)
+    {
+        this.summonorName = summonorName;
+        if(queueType.containsKey(queue.toLowerCase()))
+        {
+            this.queue = String.valueOf(queueType.get(queue.toLowerCase()));
+        }
+        startTime = start.getTime();
+        endTime = end.getTime();
+    }
+    public static String callRiotAPI(RiotApiLinks link, String... args) throws ApiRejectedException
+    {
+        String data = "";
+        try {
+            data = getApiData(String.format(link.getValue(), (Object[]) args).concat("api_key=").concat(KEY));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return data;
+    }
+
+    private void getChampData() throws ApiRejectedException
     {
         String data = "";
         try {
@@ -78,22 +111,28 @@ public class RiotApi {
         role = lane;
     }
 
-    public String getGameHistory()
+    public GameHistory getGameHistory() throws ApiRejectedException
     {
         getChampData();
         String data = "";
         String champNum = "";
         System.out.println(sumData.get("id"));
+        System.out.println(startTime);
         try {
-            data = getApiData("https://euw1.api.riotgames.com/lol/match/v4/matchlists/by-account/"+sumData.get("accountId")+"?queue="+queue+"&api_key="+KEY);
+            data = getApiData("https://euw1.api.riotgames.com/lol/match/v4/matchlists/by-account/"+sumData.get("accountId")+"?champion="+getChampNum(champ)+"&queue="+queue+"&beginTime="+startTime+"&="+endTime+"&api_key="+KEY);
         } catch (IOException e) {
             e.printStackTrace();
         }
         JSONObject jsonObject = new JSONObject(data);
+        if (numOfGames == 0)
+        {
+            numOfGames = jsonObject.getJSONArray("matches").length();
+        }
         if(jsonObject.getJSONArray("matches").length() < numOfGames)
         {
             numOfGames = jsonObject.getJSONArray("matches").length();
         }
+        setUpCsv();
 
 
         for(int i = 0; i < numOfGames; i++) {
@@ -104,11 +143,18 @@ public class RiotApi {
             getMatchData(gameId, champId);
         }
         stringBuilder.append(gameData.getAverage());
-        return stringBuilder.toString();
+        gameHistory.setOutput(stringBuilder.append("```").toString());
+        gameHistory.setCsv(csv);
+        return gameHistory;
 
     }
 
-    public void getMatchData(String gameId, String champId)
+    private void setUpCsv()
+    {
+        csv.add("Date").add("Win Or Loss").add("Champ").add("Kills").add("Deaths").add("Assists").add("KDA").add("Vision Score").add("Vision Per Min").add("Damage To Champs").add("Gold").add("Vision Wards").add("Role").addBreak();
+    }
+
+    public void getMatchData(String gameId, String champId) throws ApiRejectedException
     {
         String data = "";
         try {
@@ -136,7 +182,9 @@ public class RiotApi {
                 int goldEarned = pd.getInt("goldEarned");
                 int visionWards = pd.getInt("visionWardsBoughtInGame");
                 double wardPer = visionScore/( (double) gameDuration/60);
+                double kda =  round((kills + assists) / ((double) deaths + 1), 2);
                 gameData.addData(win,kills,deaths,assists,visionScore,damage,goldEarned,visionWards,wardPer);
+                csv.add(date).add((win) ? "Win":"Loss").add(champName).add(kills).add(deaths).add(assists).add(kda).add(visionScore).add(wardPer).add(damage).add(goldEarned).add(visionWards).add(role).addBreak();
                 String output = String.format("Date: %s, Win/loss: %s,Champ: %s, Kills %s, Deaths: %s, Assists: %s,KDA: %s, Vision Score: %s, Vision Per: %s, Damage To Champs: %s, Gold: %s, Vision Wards: %s, Role: %s",
                         date,
                         (win) ? "Win":"Loss",
@@ -155,11 +203,9 @@ public class RiotApi {
                 stringBuilder.append(System.getProperty("line.separator"));
             }
         }
-
-
     }
 
-    private String getChampName(String num)
+    private String getChampName(String num) throws ApiRejectedException
     {
         if(champData == null) {
             String data = "";
@@ -186,9 +232,37 @@ public class RiotApi {
         return "Unknown";
     }
 
+    private String getChampNum(String num) throws ApiRejectedException
+    {
+        if(champData == null) {
+            String data = "";
+            try {
+                String version = getVersion();
+                data = getApiData("https://ddragon.leagueoflegends.com/cdn/" + version + "/data/en_GB/champion.json");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            champData = new JSONObject(data).getJSONObject("data");
+        }
+        Iterator<String> i = champData.keys();
+
+        while (i.hasNext())
+        {
+            String key = i.next();
+            JSONObject s = champData.getJSONObject(key);
+            if(s.get("id").toString().toLowerCase().equals(num.toLowerCase()))
+            {
+                return s.getString("key");
+            }
+        }
+
+        return "";
+    }
+
     ////UTILITY Methods
 
-    private double round(double value, int places) {
+    private double round(double value, int places)
+    {
         if (places < 0)
         {
             throw new IllegalArgumentException();

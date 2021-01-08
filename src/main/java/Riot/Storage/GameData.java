@@ -1,4 +1,4 @@
-package RiotApi;
+package Riot.Storage;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -42,7 +42,7 @@ public class GameData {
     }
 
     public String getAverage() {
-        String output = String.format("Past %s Games Wins:%s loss: %s, Kills %s, Deaths: %s, Assists: %s,KDA: %s, Vision Score: %s, Vision Per: %s, Damage To Champs: %s, Gold: %s, Vision Wards: %s",
+        String output = String.format("Past %s Games Wins:%s loss: %s, Averages: Kills %s, Deaths: %s, Assists: %s,KDA: %s, Vision Score: %s, Vision Per: %s, Damage To Champs: %s, Gold: %s, Vision Wards: %s",
                 numOfGames,
                 wins,
                 losses,

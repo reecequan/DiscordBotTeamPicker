@@ -1,6 +1,7 @@
 package Application;
 
 import Listeners.BotListener;
+import Notification.PrimeNotifications;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
@@ -22,6 +23,7 @@ public class App
         jdaBuilder.addEventListeners(botListener).setActivity(Activity.playing("Type !teamHelp"));
         try {
             jda = jdaBuilder.build();
+            new PrimeNotifications(jda).sendPrimeMessage();
         }catch (LoginException e)
         {
             e.getStackTrace();
