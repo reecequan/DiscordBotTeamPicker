@@ -1,5 +1,6 @@
 package Listeners;
 
+import RiotApi.RiotApi;
 import Uility.ChampDetails;
 import Uility.SaveProperties;
 import Uility.TeamPicker;
@@ -25,7 +26,6 @@ public class BotListener extends ListenerAdapter {
             case "!setReplyPath":
                 setReply(e);
                 break;
-
             case "!addName":
                 addNames(input, e);
                 break;
@@ -51,7 +51,18 @@ public class BotListener extends ListenerAdapter {
             case "!champ":
                 getChampDetails(input,e);
                 break;
+            case "!history":
+                getHistory(input,e);
+                break;
         }
+    }
+
+    private void getHistory(String input, MessageReceivedEvent e)
+    {
+        String[] inputParams = input.split(" ");
+        RiotApi riotApi = new RiotApi(inputParams[0],inputParams[1],Integer.parseInt(inputParams[2]));
+        String output = riotApi.getGameHistory();
+        reply(e,output);
     }
 
     private void setReply(MessageReceivedEvent e)
@@ -173,7 +184,7 @@ public class BotListener extends ListenerAdapter {
         sb.append(System.getProperty("line.separator"));
         sb.append(System.getProperty("line.separator"));
 
-        sb.append("!whosIn - Splits the names into 2 teams");
+        sb.append("!whosIn - Replys with the current players in the team list");
         sb.append(System.getProperty("line.separator"));
         sb.append(System.getProperty("line.separator"));
 
