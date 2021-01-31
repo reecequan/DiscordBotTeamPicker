@@ -5,6 +5,7 @@ import Uility.Csv;
 import Riot.Storage.GameData;
 import Riot.Storage.GameHistory;
 import Riot.Constants.RiotApiLinks;
+import Uility.Keys;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -19,7 +20,7 @@ import static Riot.Api.ApiHelper.getApiData;
 import static Riot.Api.ApiHelper.getVersion;
 
 public class RiotApi {
-    public static final String KEY = "RGAPI-e44008fb-797b-4efe-bb35-680844cd638b";
+    public static final String KEY = Keys.getKey(Keys.KEYS.RIOT);
     public static JSONObject champData;
     private String role;
     private String date;
